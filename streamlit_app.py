@@ -7,6 +7,12 @@ from collections import defaultdict
 import gspread
 import openpyxl
 import pandas as pd
+
+# pandas 최신 버전(3.0+)의 "future.infer_string" 옵션이 켜져 있으면, 빈 문자열만
+# 있는 컬럼에 나중에 숫자를 넣으려 할 때 dtype 오류가 나서 꺼둔다.
+# (이 문제로 병합 후 "수량" 값이 사라지는 버그가 있었음 — 아래에서 수정)
+pd.set_option("future.infer_string", False)
+
 import requests
 import streamlit as st
 from google.oauth2.service_account import Credentials
@@ -202,16 +208,28 @@ def save_df_to_worksheet(ws, df):
 
 
 def recompute_quantity(df):
-    """수량 = 미개봉 + 개봉 (숫자로 못 읽는 값은 0으로 취급)"""
+    """미개봉/개봉에 값이 있을 때만 그 합으로 수량을 자동 계산.
+    둘 다 비어있으면(예: 수량만 있는 엑셀을 불러온 경우) 기존 수량 값을 그대로 둔다."""
     def to_num(v):
+        s = str(v).strip()
+        if s == "" or s.lower() == "nan":
+            return None
         try:
             return int(float(v))
         except (TypeError, ValueError):
-            return 0
+            return None
 
-    df["수량"] = [
-        to_num(u) + to_num(o) for u, o in zip(df["미개봉"], df["개봉"])
-    ]
+    new_qty = []
+    for u, o, existing_q in zip(df["미개봉"], df["개봉"], df["수량"]):
+        u_n = to_num(u)
+        o_n = to_num(o)
+        if u_n is None and o_n is None:
+            new_qty.append(existing_q)
+        else:
+            new_qty.append((u_n or 0) + (o_n or 0))
+    # pandas 최신 버전에서 리스트를 그대로 대입하면 컬럼이 엄격한 문자열
+    # dtype으로 재추론되어 이후 숫자 대입이 막히는 문제가 있어, object dtype으로 명시
+    df["수량"] = pd.array(new_qty, dtype=object)
     return df
 
 
@@ -477,7 +495,9 @@ edited_df = st.data_editor(
         "보관위치": st.column_config.SelectboxColumn(
             "보관위치", options=STORAGE_LOCATIONS + [""], required=False
         ),
-        "수량": st.column_config.NumberColumn("수량 (자동계산)", disabled=True),
+        "수량": st.column_config.NumberColumn(
+            "수량 (미개봉+개봉 자동계산, 필요시 직접 수정 가능)"
+        ),
         "미개봉": st.column_config.NumberColumn("미개봉", min_value=0, step=1),
         "개봉": st.column_config.NumberColumn("개봉", min_value=0, step=1),
     },
