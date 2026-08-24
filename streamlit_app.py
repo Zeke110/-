@@ -72,8 +72,8 @@ FLOOR_PLAN_RECTS = {
     "위험물 보관함": (568, 237, 72, 60),
     "2 시약장": (397, 365, 52, 73),  # 배치도 상의 "2 보관함" 칸
     "데시케이터 1": (163, 178, 69, 59),
-    "데시케이터 2": (377, 710, 67, 68),
-    "냉장고": (295, 710, 68, 68),
+    "데시케이터 2": (295, 710, 70, 68),
+    "냉장고": (295, 782, 70, 68),
 }
 
 
@@ -93,11 +93,11 @@ def build_floor_plan_svg(highlight_location=None):
         )
 
     return f"""
-<svg width="100%" viewBox="0 0 900 800" xmlns="http://www.w3.org/2000/svg"
+<svg width="100%" viewBox="0 0 900 900" xmlns="http://www.w3.org/2000/svg"
      style="font-family:sans-serif;max-width:820px;display:block;margin:0 auto;">
 <style>.ts{{font-size:15px;}} .t{{font-size:17px;}}</style>
 
-<path d="M40 46 H640 V660 H535 V778 H40 Z" fill="none" stroke="#111" stroke-width="3"/>
+<path d="M40 46 H640 V660 H535 V866 H40 Z" fill="none" stroke="#111" stroke-width="3"/>
 
 <g><rect x="40" y="46" width="72" height="119" fill="#f0d4ef" stroke="#333" stroke-width="1"/><text class="ts" x="76" y="105" text-anchor="middle" dominant-baseline="central">싱크대</text></g>
 <g><rect x="112" y="46" width="162" height="72" fill="#4a9e3f" stroke="#333" stroke-width="1"/><text class="ts" x="193" y="82" text-anchor="middle" dominant-baseline="central" fill="#fff">후드</text></g>
@@ -126,20 +126,21 @@ def build_floor_plan_svg(highlight_location=None):
 
 <g><rect x="163" y="578" width="251" height="55" fill="#9e9e9e" stroke="#333" stroke-width="1"/><text class="ts" x="288" y="605" text-anchor="middle" dominant-baseline="central" fill="#fff">Dry-spinning</text></g>
 
-<g><rect x="453" y="578" width="76" height="200" fill="#4a9e3f" stroke="#333" stroke-width="1"/><text class="ts" x="491" y="678" text-anchor="middle" dominant-baseline="central" fill="#fff">후드</text></g>
+<g><rect x="453" y="578" width="76" height="288" fill="#4a9e3f" stroke="#333" stroke-width="1"/><text class="ts" x="491" y="722" text-anchor="middle" dominant-baseline="central" fill="#fff">후드</text></g>
 <g><rect x="529" y="578" width="111" height="81" fill="#b2e2b2" stroke="#333" stroke-width="1"/><text class="ts" x="584" y="618" text-anchor="middle" dominant-baseline="central">입구 선반</text></g>
 
 <g><rect x="163" y="710" width="132" height="68" fill="#f0d4ef" stroke="#333" stroke-width="1"/><text class="ts" x="229" y="744" text-anchor="middle" dominant-baseline="central">싱크대</text></g>
-<g><rect x="295" y="710" width="68" height="68" fill="#1b6a86" stroke="#333" stroke-width="1"/><text class="ts" x="329" y="744" text-anchor="middle" dominant-baseline="central" fill="#fff">냉장고</text></g>
-<g><rect x="377" y="710" width="67" height="68" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="410" y="744" text-anchor="middle" dominant-baseline="central"><tspan x="410" dy="-6">데시케이터</tspan><tspan x="410" dy="14">2</tspan></text></g>
+<g><rect x="295" y="710" width="70" height="68" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="330" y="744" text-anchor="middle" dominant-baseline="central"><tspan x="330" dy="-6">데시케이터</tspan><tspan x="330" dy="14">2</tspan></text></g>
+<g><rect x="295" y="782" width="70" height="68" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="330" y="816" text-anchor="middle" dominant-baseline="central">냉장고</text></g>
 
 <g>
-  <rect x="720" y="180" width="42" height="42" fill="#1b6a86" stroke="#333" stroke-width="1"/><text class="t" x="774" y="201" dominant-baseline="central">책상</text>
-  <rect x="720" y="240" width="42" height="42" fill="#b2e2b2" stroke="#333" stroke-width="1"/><text class="t" x="774" y="261" dominant-baseline="central">선반</text>
-  <rect x="720" y="300" width="42" height="42" fill="#f0d4ef" stroke="#333" stroke-width="1"/><text class="t" x="774" y="321" dominant-baseline="central">싱크대</text>
-  <rect x="720" y="360" width="42" height="42" fill="#4a9e3f" stroke="#333" stroke-width="1"/><text class="t" x="774" y="381" dominant-baseline="central">후드</text>
-  <rect x="720" y="420" width="42" height="42" fill="#9e9e9e" stroke="#333" stroke-width="1"/><text class="t" x="774" y="441" dominant-baseline="central">장비</text>
-  <rect x="720" y="480" width="42" height="42" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="t" x="774" y="501" dominant-baseline="central">시약장</text>
+  <rect x="700" y="170" width="220" height="380" fill="#ffffff" stroke="#ccc" stroke-width="1" rx="8"/>
+  <rect x="720" y="180" width="42" height="42" fill="#1b6a86" stroke="#333" stroke-width="1"/><text class="t" x="774" y="201" dominant-baseline="central" fill="#111">책상</text>
+  <rect x="720" y="240" width="42" height="42" fill="#b2e2b2" stroke="#333" stroke-width="1"/><text class="t" x="774" y="261" dominant-baseline="central" fill="#111">선반</text>
+  <rect x="720" y="300" width="42" height="42" fill="#f0d4ef" stroke="#333" stroke-width="1"/><text class="t" x="774" y="321" dominant-baseline="central" fill="#111">싱크대</text>
+  <rect x="720" y="360" width="42" height="42" fill="#4a9e3f" stroke="#333" stroke-width="1"/><text class="t" x="774" y="381" dominant-baseline="central" fill="#111">후드</text>
+  <rect x="720" y="420" width="42" height="42" fill="#9e9e9e" stroke="#333" stroke-width="1"/><text class="t" x="774" y="441" dominant-baseline="central" fill="#111">장비</text>
+  <rect x="720" y="480" width="42" height="42" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="t" x="774" y="501" dominant-baseline="central" fill="#111">시약장</text>
 </g>
 
 {highlight_rect}
@@ -642,7 +643,7 @@ with st.expander("🗺️ 실험실 배치도 보기 (보관위치 선택 시 �
         key="floor_plan_location_picker",
     )
     highlight = None if selected_location == "(전체 보기)" else selected_location
-    components.html(build_floor_plan_svg(highlight), height=740, scrolling=True)
+    components.html(build_floor_plan_svg(highlight), height=830, scrolling=True)
 
 # ----------------------------------------------------------------------------
 # 4. 데이터 표 (편집 가능) — 검색 없을 때는 표에서 바로 행 추가/삭제도 가능
