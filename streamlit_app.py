@@ -656,7 +656,7 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
         lambda x: LOCATION_RENAME_MAP.get(x, x)
     )
 
-    # 고정 순서 정의
+    # 고정 순서
     ORDERED_LOCS = [
         "시약장 1-1 (산/부식성)",
         "시약장 1-2 (염기/아민)",
@@ -677,13 +677,11 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
     key_counter = {}
 
     def render_loc_items(loc, container):
-        """한 보관위치의 물질 목록을 container 안에 렌더링"""
         loc_df = view_df[view_df["_loc"] == loc]
         loc_groups = {}
         for idx, row in loc_df.iterrows():
             k = row["_gkey"]
             loc_groups.setdefault(k, []).append(idx)
-
         with container:
             for gkey, idxs in loc_groups.items():
                 grp      = view_df.loc[idxs]
@@ -692,14 +690,11 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
                 unopened = sum(1 for _, r in grp.iterrows()
                                if str(r.get("개봉", "")).strip() in ("", "nan", "0", "0.0"))
                 opened   = qty - unopened
-
                 suffix = f"수량 {qty}" + (f"（미개봉 {unopened}·개봉 {opened}）" if qty > 1 else "")
                 label  = f"{first['제품명']}　｜　{first['용량']}　｜　{suffix}"
-
                 base_key = f"sub_{loc[:8]}_{gkey[0][:12]}_{gkey[1][:8]}"
                 key_counter[base_key] = key_counter.get(base_key, 0) + 1
                 unique_key = f"{base_key}_{key_counter[base_key]}"
-
                 with st.expander(label, expanded=False):
                     st.caption(
                         f"CAT No. {first['CAT No.']}　｜　"
@@ -724,68 +719,42 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
                     for i, orig_idx in enumerate(idxs):
                         if i < len(edited_sub):
                             st.session_state.df.loc[orig_idx] = edited_sub.iloc[i]
-
         return len(loc_groups), len(loc_df)
 
-    # ── 시약장 1: 접을 수 있는 섹션 안에 2열 그리드 ────────────────────────
+    # ── 시약장 1: expander 안에 1-1~1-5를 2열 그리드로 ─────────────────────
     shelf1_locs = [l for l in locs_in_view if "시약장 1-" in l]
     other_locs  = [l for l in locs_in_view if "시약장 1-" not in l]
 
     if shelf1_locs:
-        total_s1_kinds = sum(
-            view_df[view_df["_loc"] == l]["_gkey"].nunique() for l in shelf1_locs
-        )
-        total_s1_qty = sum(len(view_df[view_df["_loc"] == l]) for l in shelf1_locs)
-
-        with st.expander(
-            f"🗄️ 시약장 1 (환기시약장)　　"
-            f"{total_s1_kinds}종 · {total_s1_qty}개",
-            expanded=True,
-        ):
+        total_s1_kinds = sum(view_df[view_df["_loc"] == l]["_gkey"].nunique() for l in shelf1_locs)
+        total_s1_qty   = sum(len(view_df[view_df["_loc"] == l]) for l in shelf1_locs)
+        with st.expander(f"🗄️ 시약장 1 (환기시약장)　　{total_s1_kinds}종 · {total_s1_qty}개", expanded=False):
             for i in range(0, len(shelf1_locs), 2):
                 pair = shelf1_locs[i:i+2]
                 if len(pair) == 2:
                     c1, c2 = st.columns(2)
                     loc_df1 = view_df[view_df["_loc"] == pair[0]]
                     loc_df2 = view_df[view_df["_loc"] == pair[1]]
-                    k1 = loc_df1["_gkey"].nunique()
-                    k2 = loc_df2["_gkey"].nunique()
                     with c1:
-                        st.markdown(
-                            f"**📂 {pair[0]}**&nbsp;&nbsp;"
-                            f"<span style='color:gray;font-size:0.85em;'>{k1}종 · {len(loc_df1)}개</span>",
-                            unsafe_allow_html=True,
-                        )
+                        st.markdown(f"**{pair[0]}**　<span style='color:gray;font-size:0.85em;'>{loc_df1['_gkey'].nunique()}종 · {len(loc_df1)}개</span>", unsafe_allow_html=True)
                     with c2:
-                        st.markdown(
-                            f"**📂 {pair[1]}**&nbsp;&nbsp;"
-                            f"<span style='color:gray;font-size:0.85em;'>{k2}종 · {len(loc_df2)}개</span>",
-                            unsafe_allow_html=True,
-                        )
+                        st.markdown(f"**{pair[1]}**　<span style='color:gray;font-size:0.85em;'>{loc_df2['_gkey'].nunique()}종 · {len(loc_df2)}개</span>", unsafe_allow_html=True)
                     render_loc_items(pair[0], c1)
                     render_loc_items(pair[1], c2)
                     st.divider()
                 else:
                     loc_df1 = view_df[view_df["_loc"] == pair[0]]
-                    k1 = loc_df1["_gkey"].nunique()
                     c1, _ = st.columns(2)
                     with c1:
-                        st.markdown(
-                            f"**📂 {pair[0]}**&nbsp;&nbsp;"
-                            f"<span style='color:gray;font-size:0.85em;'>{k1}종 · {len(loc_df1)}개</span>",
-                            unsafe_allow_html=True,
-                        )
+                        st.markdown(f"**{pair[0]}**　<span style='color:gray;font-size:0.85em;'>{loc_df1['_gkey'].nunique()}종 · {len(loc_df1)}개</span>", unsafe_allow_html=True)
                     render_loc_items(pair[0], c1)
 
-    # ── 나머지 보관위치: 각각 접을 수 있는 섹션 ────────────────────────────
+    # ── 나머지: expander 하나씩 ─────────────────────────────────────────────
     for loc in other_locs:
-        loc_df = view_df[view_df["_loc"] == loc]
+        loc_df    = view_df[view_df["_loc"] == loc]
         loc_kinds = loc_df["_gkey"].nunique()
         loc_qty   = len(loc_df)
-        with st.expander(
-            f"📦 {loc}　　{loc_kinds}종 · {loc_qty}개",
-            expanded=False,
-        ):
+        with st.expander(f"📦 {loc}　　{loc_kinds}종 · {loc_qty}개", expanded=False):
             c1, c2 = st.columns(2)
             render_loc_items(loc, c1)
 
