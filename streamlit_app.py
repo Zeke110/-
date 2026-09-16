@@ -651,14 +651,26 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
     else:
         st.caption(f"총 {len(st.session_state.df)}개 항목 / {total_groups}종")
 
-    # 보관위치 순서: STORAGE_LOCATIONS 순서 그대로, 나머지는 뒤에
+    # 보관위치 이름 정규화 (구버전 이름 → 현재 이름으로 변환 후 순서 맞춤)
+    view_df["_loc"] = view_df["_loc"].apply(
+        lambda x: LOCATION_RENAME_MAP.get(x, x)
+    )
+
+    # STORAGE_LOCATIONS 순서대로, 나머지는 뒤에
     locs_in_view = [l for l in STORAGE_LOCATIONS if l in view_df["_loc"].values] +                    [l for l in view_df["_loc"].unique()
                     if l not in STORAGE_LOCATIONS and l not in ("nan", "")]
 
-    # key 중복 방지용 전역 카운터
     key_counter = {}
 
-    for loc in locs_in_view:
+    # 좌우 2열 레이아웃으로 보관위치 섹션 배치
+    n_locs = len(locs_in_view)
+    mid    = (n_locs + 1) // 2   # 왼쪽이 한 개 더 많거나 같게
+    left_locs  = locs_in_view[:mid]
+    right_locs = locs_in_view[mid:]
+
+    col_left, col_right = st.columns(2)
+
+    def render_loc_section(loc, container):
         loc_df = view_df[view_df["_loc"] == loc]
         loc_groups = {}
         for idx, row in loc_df.iterrows():
@@ -668,54 +680,60 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
         loc_total_qty = len(loc_df)
         loc_kinds     = len(loc_groups)
 
-        st.markdown(
-            f"### 📦 {loc}&nbsp;&nbsp;"
-            f"<span style='font-size:0.85em;color:gray;'>{loc_kinds}종 · {loc_total_qty}개</span>",
-            unsafe_allow_html=True,
-        )
+        with container:
+            st.markdown(
+                f"### 📦 {loc}&nbsp;&nbsp;"
+                f"<span style='font-size:0.85em;color:gray;'>{loc_kinds}종 · {loc_total_qty}개</span>",
+                unsafe_allow_html=True,
+            )
 
-        for gkey, idxs in loc_groups.items():
-            grp      = view_df.loc[idxs]
-            first    = grp.iloc[0]
-            qty      = len(idxs)
-            unopened = sum(1 for _, r in grp.iterrows()
-                           if str(r.get("개봉", "")).strip() in ("", "nan", "0", "0.0"))
-            opened   = qty - unopened
+            for gkey, idxs in loc_groups.items():
+                grp      = view_df.loc[idxs]
+                first    = grp.iloc[0]
+                qty      = len(idxs)
+                unopened = sum(1 for _, r in grp.iterrows()
+                               if str(r.get("개봉", "")).strip() in ("", "nan", "0", "0.0"))
+                opened   = qty - unopened
 
-            suffix = f"수량 {qty}" + (f"  （미개봉 {unopened} · 개봉 {opened}）" if qty > 1 else "")
-            label  = f"{first['제품명']}　｜　{first['용량']}　｜　{suffix}"
+                suffix = f"수량 {qty}" + (f"  （미개봉 {unopened} · 개봉 {opened}）" if qty > 1 else "")
+                label  = f"{first['제품명']}　｜　{first['용량']}　｜　{suffix}"
 
-            # key 중복 방지: loc + gkey + 카운터 조합
-            base_key = f"sub_{loc[:8]}_{gkey[0][:12]}_{gkey[1][:8]}"
-            key_counter[base_key] = key_counter.get(base_key, 0) + 1
-            unique_key = f"{base_key}_{key_counter[base_key]}"
+                base_key = f"sub_{loc[:8]}_{gkey[0][:12]}_{gkey[1][:8]}"
+                key_counter[base_key] = key_counter.get(base_key, 0) + 1
+                unique_key = f"{base_key}_{key_counter[base_key]}"
 
-            with st.expander(label, expanded=False):
-                st.caption(
-                    f"CAT No. {first['CAT No.']}　｜　"
-                    f"CAS {first['CAS No.']}　｜　{first['유해·위험성']}"
-                )
-                sub_df = grp.drop(columns=["_gkey", "_loc"]).reset_index(drop=True)
-                edited_sub = st.data_editor(
-                    sub_df,
-                    num_rows="dynamic",
-                    use_container_width=True,
-                    key=unique_key,
-                    column_config={
-                        "보관위치": st.column_config.SelectboxColumn(
-                            "보관위치", options=STORAGE_LOCATIONS + [""], required=False
-                        ),
-                        "수량":   st.column_config.NumberColumn("수량"),
-                        "미개봉": st.column_config.NumberColumn("미개봉", min_value=0, step=1),
-                        "개봉":   st.column_config.NumberColumn("개봉",   min_value=0, step=1),
-                    },
-                )
-                edited_sub = recompute_quantity(edited_sub.astype(object))
-                for i, orig_idx in enumerate(idxs):
-                    if i < len(edited_sub):
-                        st.session_state.df.loc[orig_idx] = edited_sub.iloc[i]
+                with st.expander(label, expanded=False):
+                    st.caption(
+                        f"CAT No. {first['CAT No.']}　｜　"
+                        f"CAS {first['CAS No.']}　｜　{first['유해·위험성']}"
+                    )
+                    sub_df = grp.drop(columns=["_gkey", "_loc"]).reset_index(drop=True)
+                    edited_sub = st.data_editor(
+                        sub_df,
+                        num_rows="dynamic",
+                        use_container_width=True,
+                        key=unique_key,
+                        column_config={
+                            "보관위치": st.column_config.SelectboxColumn(
+                                "보관위치", options=STORAGE_LOCATIONS + [""], required=False
+                            ),
+                            "수량":   st.column_config.NumberColumn("수량"),
+                            "미개봉": st.column_config.NumberColumn("미개봉", min_value=0, step=1),
+                            "개봉":   st.column_config.NumberColumn("개봉",   min_value=0, step=1),
+                        },
+                    )
+                    edited_sub = recompute_quantity(edited_sub.astype(object))
+                    for i, orig_idx in enumerate(idxs):
+                        if i < len(edited_sub):
+                            st.session_state.df.loc[orig_idx] = edited_sub.iloc[i]
 
-        st.divider()
+            st.divider()
+
+    for loc in left_locs:
+        render_loc_section(loc, col_left)
+    for loc in right_locs:
+        render_loc_section(loc, col_right)
+
 
     # -------------------------------------------------------------------------
     # 전체 보기: 기존 data_editor 방식
