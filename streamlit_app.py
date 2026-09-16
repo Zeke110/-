@@ -158,6 +158,20 @@ def find_header_row(file_bytes, columns, max_scan=20):
     return best_row
 
 
+# 엑셀 불러올 때 구버전 보관위치 이름 → 현재 사이트 이름으로 자동 변환
+LOCATION_RENAME_MAP = {
+    "시약장 1-3 (산화제/제6류)": "시약장 1-3 (산화제)",
+    "시약장 1-4 (비가연성)":     "시약장 1-4 (독성/비가연성)",
+    "시약장 1-5 (이온성 액체)":  "시약장 1-5 (이온성/고분자)",
+    "시약장 2 (인화성)":         "시약장 2(인화성)",
+    "위험물 보관함":             "시약장 2(인화성)",
+    "환기시약장":               "시약장 1-5 (이온성/고분자)",
+    "시약장 2":                 "시약장 2(인화성)",
+    "시약장 5":                 "시약장 5 (데시케이터2)",
+    "데시케이터 1":             "시약장 4 (데시케이터1)",
+    "데시케이터 2":             "시약장 5 (데시케이터2)",
+}
+
 def read_excel_normalized(file_bytes, columns):
     header_row = find_header_row(file_bytes, columns)
     df = pd.read_excel(io.BytesIO(file_bytes), header=header_row)
@@ -171,6 +185,14 @@ def read_excel_normalized(file_bytes, columns):
 
     df = df[columns].reset_index(drop=True)
     df = df.astype(object).where(pd.notna(df), "")
+
+    # 보관위치 이름 자동 변환
+    if "보관위치" in df.columns:
+        df["보관위치"] = df["보관위치"].apply(
+            lambda x: LOCATION_RENAME_MAP.get(str(x).strip(), str(x).strip())
+            if pd.notna(x) and str(x).strip() != "" else x
+        )
+
     return df, missing_cols
 
 
