@@ -185,7 +185,9 @@ def build_match_key(row):
 
 
 def merge_dataframes(base_df, new_df, columns):
-    base_df = base_df.copy()
+    # Arrow dtype 충돌 방지 — 모든 컬럼을 object로 강제 변환
+    base_df = base_df.copy().astype(object)
+    new_df = new_df.copy().astype(object)
 
     key_to_idx = defaultdict(list)
     for idx, row in base_df.iterrows():
@@ -206,13 +208,14 @@ def merge_dataframes(base_df, new_df, columns):
                     new_has_val = pd.notna(new_val) and str(new_val).strip() != ""
                     existing_str = "" if pd.isna(existing_val) else str(existing_val).strip()
                     if new_has_val and str(new_val).strip() != existing_str:
-                        base_df.at[idx, col] = new_val
+                        base_df.at[idx, col] = str(new_val)
                         updated_cells += 1
         else:
             new_rows.append(srow)
 
     if new_rows:
-        base_df = pd.concat([base_df, pd.DataFrame(new_rows)], ignore_index=True)
+        new_df_add = pd.DataFrame(new_rows, columns=columns).astype(object)
+        base_df = pd.concat([base_df, new_df_add], ignore_index=True)
 
     base_df = base_df.reset_index(drop=True)
     return base_df, matched, updated_cells, len(new_rows)
