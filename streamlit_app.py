@@ -18,16 +18,6 @@ import streamlit as st
 import streamlit.components.v1 as components
 from google.oauth2.service_account import Credentials
 
-# ============================================================================
-# 시약 & 용액 재고 관리 (Streamlit 웹앱 버전)
-#
-# 기존 Tkinter 데스크톱 프로그램(lab_chemical_manager.py)의 로직을 그대로
-# 옮긴 웹앱입니다. PC/모바일 브라우저에서 동일하게 열람·수정할 수 있습니다.
-#
-# Google Sheets를 "공유 저장소"로 연결하면 여러 사람이 같은 데이터를
-# 보고 저장할 수 있습니다 (설정 방법은 README.md 참고).
-# ============================================================================
-
 GSHEET_SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
@@ -52,54 +42,36 @@ COLUMNS = [
 
 CAPACITY_UNITS = ["g", "kg", "mL", "L"]
 
-# ▼▼▼ 수정 1: STORAGE_LOCATIONS ▼▼▼
 STORAGE_LOCATIONS = [
     "시약장 1-1 (산/부식성)",
     "시약장 1-2 (염기/아민)",
-    "시약장 1-3 (산화제/제6류)",
-    "시약장 1-4 (비가연성)",
-    "시약장 1-5 (이온성 액체)",
-    "시약장 2 (인화성)",
+    "시약장 1-3 (산화제)",
+    "시약장 1-4 (독성/비가연성)",
+    "시약장 1-5 (이온성/고분자)",
+    "시약장 2(인화성)",
     "시약장 3 (고체시약장)",
     "시약장 4 (데시케이터1)",
     "시약장 5 (데시케이터2)",
-    "환기시약장",
-    "위험물 보관함",
     "냉장고",
     "글로브 박스",
 ]
-# ▲▲▲ 수정 1 끝 ▲▲▲
 
-# ----------------------------------------------------------------------------
-# 실험실 배치도 (보관위치 지도)
-#
-# 각 보관위치 이름을 배치도 위의 사각형 좌표(x, y, width, height)에 매핑해서,
-# 보관위치를 선택하면 그 구역만 빨간 테두리로 강조되도록 한다.
-# ----------------------------------------------------------------------------
-# ▼▼▼ 수정 2: FLOOR_PLAN_RECTS ▼▼▼
 FLOOR_PLAN_RECTS = {
-    # 시약장 1 (환기시약장) — 1-1~1-5 모두 같은 칸 강조
     "시약장 1-1 (산/부식성)":    (568, 348, 72, 60),
     "시약장 1-2 (염기/아민)":    (568, 348, 72, 60),
-    "시약장 1-3 (산화제/제6류)": (568, 348, 72, 60),
-    "시약장 1-4 (비가연성)":     (568, 348, 72, 60),
-    "시약장 1-5 (이온성 액체)":  (568, 348, 72, 60),
-    "환기시약장":                (568, 348, 72, 60),
-    "위험물 보관함":             (568, 237, 72, 60),
-    "시약장 2 (인화성)":         (397, 365, 52, 73),
+    "시약장 1-3 (산화제)":       (568, 348, 72, 60),
+    "시약장 1-4 (독성/비가연성)":(568, 348, 72, 60),
+    "시약장 1-5 (이온성/고분자)":(568, 348, 72, 60),
+    "시약장 2(인화성)":          (397, 365, 52, 73),
     "시약장 3 (고체시약장)":     (0, 0, 0, 0),    # 추후 업데이트
     "시약장 4 (데시케이터1)":    (0, 0, 0, 0),    # 추후 업데이트
     "시약장 5 (데시케이터2)":    (0, 0, 0, 0),    # 추후 업데이트
     "냉장고":                    (295, 782, 70, 68),
     "글로브 박스":               (274, 46, 111, 72),
 }
-# ▲▲▲ 수정 2 끝 ▲▲▲
 
 
 def build_floor_plan_svg(highlight_location=None):
-    """실험실 배치도 SVG를 만든다. highlight_location이 주어지면 해당 구역
-    사각형에 빨간 강조 테두리를 덧그린다."""
-
     highlight_rect = ""
     if highlight_location and highlight_location in FLOOR_PLAN_RECTS:
         hx, hy, hw, hh = FLOOR_PLAN_RECTS[highlight_location]
@@ -137,8 +109,8 @@ def build_floor_plan_svg(highlight_location=None):
 <g><rect x="385" y="301" width="68" height="64" fill="#1b6a86" stroke="#333" stroke-width="1"/><text class="ts" x="419" y="333" text-anchor="middle" dominant-baseline="central" fill="#fff">책상 6</text></g>
 <g><rect x="397" y="365" width="52" height="73" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="423" y="401" text-anchor="middle" dominant-baseline="central"><tspan x="423" dy="-10">시약장 2</tspan><tspan x="423" dy="13">(인화성)</tspan></text></g>
 
-<g><rect x="568" y="237" width="72" height="60" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="604" y="267" text-anchor="middle" dominant-baseline="central"><tspan x="604" dy="-6">위험물</tspan><tspan x="604" dy="14">보관함</tspan></text></g>
-<g><rect x="568" y="348" width="72" height="60" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="604" y="378" text-anchor="middle" dominant-baseline="central"><tspan x="604" dy="-6">환기</tspan><tspan x="604" dy="14">시약장</tspan></text></g>
+<g><rect x="568" y="237" width="72" height="60" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="604" y="267" text-anchor="middle" dominant-baseline="central"><tspan x="604" dy="-6">시약장 1</tspan><tspan x="604" dy="14">(환기시약장)</tspan></text></g>
+<g><rect x="568" y="348" width="72" height="60" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="604" y="378" text-anchor="middle" dominant-baseline="central"><tspan x="604" dy="-6">시약장 1</tspan><tspan x="604" dy="14">(1-1~1-5)</tspan></text></g>
 <g><rect x="568" y="408" width="72" height="115" fill="#cdeeff" stroke="#333" stroke-width="1"/><text class="ts" x="604" y="465" text-anchor="middle" dominant-baseline="central"><tspan x="604" dy="-6">스핀</tspan><tspan x="604" dy="14">코터</tspan></text></g>
 
 <g><rect x="40" y="510" width="72" height="149" fill="#b2e2b2" stroke="#333" stroke-width="1"/><text class="ts" x="76" y="585" text-anchor="middle" dominant-baseline="central">선반 5</text></g>
@@ -167,9 +139,6 @@ def build_floor_plan_svg(highlight_location=None):
 """
 
 
-# ----------------------------------------------------------------------------
-# 엑셀 읽기 / 헤더 자동 인식 (Tkinter 버전과 동일한 로직)
-# ----------------------------------------------------------------------------
 def find_header_row(file_bytes, columns, max_scan=20):
     wb = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
     ws = wb.active
@@ -188,7 +157,6 @@ def find_header_row(file_bytes, columns, max_scan=20):
 
 
 def read_excel_normalized(file_bytes, columns):
-    """엑셀을 읽어 columns 기준으로 정리된 DataFrame과 누락 컬럼 목록 반환"""
     header_row = find_header_row(file_bytes, columns)
     df = pd.read_excel(io.BytesIO(file_bytes), header=header_row)
 
@@ -200,7 +168,6 @@ def read_excel_normalized(file_bytes, columns):
         df[col] = ""
 
     df = df[columns].reset_index(drop=True)
-    # 빈 문자열 컬럼이 고정 dtype으로 인식되어 이후 숫자 입력이 막히는 것을 방지
     df = df.astype(object).where(pd.notna(df), "")
     return df, missing_cols
 
@@ -218,13 +185,6 @@ def build_match_key(row):
 
 
 def merge_dataframes(base_df, new_df, columns):
-    """base_df에 new_df를 병합(동기화 방식).
-    - 매칭되는 항목: 새 파일에 값이 있는 칸은 최신 값으로 덮어씀(값이 바뀐 경우
-      갱신됨). 새 파일에 값이 없는 칸(예: 수동으로만 채운 미개봉/개봉/보관위치
-      등)은 기존 값을 그대로 유지.
-    - 새 파일에 없는 기존 항목(예: 수동으로 추가한 항목)은 건드리지 않고 유지.
-    - 새 파일에만 있는 항목은 새 행으로 추가.
-    """
     base_df = base_df.copy()
 
     key_to_idx = defaultdict(list)
@@ -265,8 +225,6 @@ def df_to_excel_bytes(df):
 
 
 def get_gsheet_client():
-    """secrets.toml에 gcp_service_account가 설정돼 있으면 gspread 클라이언트를,
-    없으면 None을 반환 (Google Sheets 연동 없이도 엑셀 업/다운로드만으로 동작)"""
     try:
         if "gcp_service_account" not in st.secrets:
             return None
@@ -311,16 +269,12 @@ def load_df_from_worksheet(ws):
 
 
 def save_df_to_worksheet(ws, df):
-    """시트 전체를 지우고 현재 데이터로 다시 씀 (단순 덮어쓰기 방식이라
-    동시에 여러 명이 저장하면 나중에 저장한 내용이 우선됨)"""
     values = [COLUMNS] + df[COLUMNS].astype(str).values.tolist()
     ws.clear()
     ws.update(values)
 
 
 def recompute_quantity(df):
-    """미개봉/개봉에 값이 있을 때만 그 합으로 수량을 자동 계산.
-    둘 다 비어있으면(예: 수량만 있는 엑셀을 불러온 경우) 기존 수량 값을 그대로 둔다."""
     def to_num(v):
         s = str(v).strip()
         if s == "" or s.lower() == "nan":
@@ -338,15 +292,10 @@ def recompute_quantity(df):
             new_qty.append(existing_q)
         else:
             new_qty.append((u_n or 0) + (o_n or 0))
-    # pandas 최신 버전에서 리스트를 그대로 대입하면 컬럼이 엄격한 문자열
-    # dtype으로 재추론되어 이후 숫자 대입이 막히는 문제가 있어, object dtype으로 명시
     df["수량"] = pd.array(new_qty, dtype=object)
     return df
 
 
-# ----------------------------------------------------------------------------
-# 세션 상태 초기화
-# ----------------------------------------------------------------------------
 if "df" not in st.session_state:
     st.session_state.df = pd.DataFrame(columns=COLUMNS)
 if "df_backup" not in st.session_state:
@@ -356,8 +305,6 @@ if "df_backup_label" not in st.session_state:
 
 
 def backup_current_df(label):
-    """데이터를 통째로 덮어쓰는 작업 전에 한 단계 백업을 저장해서
-    '↩️ 되돌리기'로 복원할 수 있게 한다."""
     st.session_state.df_backup = st.session_state.df.copy()
     st.session_state.df_backup_label = label
 
@@ -365,13 +312,6 @@ def backup_current_df(label):
 st.title("🧪 시약 & 용액 재고 관리")
 st.caption("PC와 모바일 브라우저에서 동일하게 열람·수정할 수 있습니다.")
 
-# ----------------------------------------------------------------------------
-# 0. Google Sheets 연동 (여러 사람이 같은 데이터를 공유해서 보고/수정)
-#
-# secrets.toml에 서비스 계정을 설정해두면 사이드바에서 시트를 불러오고
-# 저장할 수 있습니다. 설정이 안 되어 있으면 이 부분은 비활성화되고,
-# 엑셀 업로드/다운로드만으로도 그대로 사용 가능합니다.
-# ----------------------------------------------------------------------------
 gsheet_client = get_gsheet_client()
 
 st.sidebar.header("🔗 Google Sheets 연동")
@@ -398,7 +338,6 @@ worksheet_name = st.sidebar.text_input(
 
 gsheet_ready = gsheet_client is not None and bool(sheet_id_input.strip())
 
-# 최초 접속 시 시트 설정이 있으면 자동으로 한 번 불러옴
 if gsheet_ready and "gsheet_autoloaded" not in st.session_state:
     try:
         ws = open_worksheet(gsheet_client, sheet_id_input, worksheet_name)
@@ -435,12 +374,6 @@ if gsheet_ready:
         "(동시 저장 시 나중에 누른 저장이 우선 적용됩니다)"
     )
 
-# ----------------------------------------------------------------------------
-# 되돌리기(실행취소) UI
-#
-# "새로 열기"처럼 기존 데이터를 통째로 지우는 작업 직전에 자동으로 백업이
-# 저장되어 있으면, 여기서 바로 복원할 수 있다.
-# ----------------------------------------------------------------------------
 undo_col1, undo_col2 = st.columns([1, 5])
 with undo_col1:
     if st.button(
@@ -458,9 +391,6 @@ with undo_col2:
     if st.session_state.df_backup is not None:
         st.caption(f"↩️ 되돌릴 수 있는 백업 있음: {st.session_state.df_backup_label}")
 
-# ----------------------------------------------------------------------------
-# 1. 엑셀 불러오기 / 추가 불러오기(병합) / 저장
-# ----------------------------------------------------------------------------
 with st.expander("📁 엑셀 불러오기 / 병합 / 저장", expanded=True):
     col1, col2, col3 = st.columns(3)
 
@@ -580,9 +510,6 @@ with st.expander("📁 엑셀 불러오기 / 병합 / 저장", expanded=True):
             st.success(msg)
             st.rerun()
 
-# ----------------------------------------------------------------------------
-# 2. 새 항목 추가 (용량 숫자+단위, 보관위치 선택, 미개봉/개봉 자동 수량 계산)
-# ----------------------------------------------------------------------------
 with st.expander("➕ 새 항목 추가", expanded=False):
     with st.form("add_item_form", clear_on_submit=True):
         c1, c2, c3, c4 = st.columns(4)
@@ -636,9 +563,6 @@ with st.expander("➕ 새 항목 추가", expanded=False):
                 st.success("신규 항목이 추가되었습니다.")
                 st.rerun()
 
-# ----------------------------------------------------------------------------
-# 3. 검색
-# ----------------------------------------------------------------------------
 search = st.text_input("🔍 검색어 (모든 컬럼에서 검색)")
 
 if search.strip():
@@ -646,15 +570,12 @@ if search.strip():
         lambda col: col.str.contains(search, case=False, na=False)
     ).any(axis=1)
     view_df = st.session_state.df[mask]
-    editable_mode = "fixed"  # 검색 중에는 행 추가/삭제 대신 값 수정만 허용
+    editable_mode = "fixed"
     st.caption(f"검색 결과 {len(view_df)}건 (행 추가/삭제는 검색어를 지운 뒤 이용해주세요)")
 else:
     view_df = st.session_state.df
     editable_mode = "dynamic"
 
-# ----------------------------------------------------------------------------
-# 3.5 실험실 배치도 (표 바로 위) — 보관위치를 고르면 지도에서 강조됨
-# ----------------------------------------------------------------------------
 with st.expander("🗺️ 실험실 배치도 보기 (보관위치 선택 시 강조)", expanded=False):
     selected_location = st.selectbox(
         "보관위치",
@@ -664,9 +585,6 @@ with st.expander("🗺️ 실험실 배치도 보기 (보관위치 선택 시 �
     highlight = None if selected_location == "(전체 보기)" else selected_location
     components.html(build_floor_plan_svg(highlight), height=830, scrolling=True)
 
-# ----------------------------------------------------------------------------
-# 4. 데이터 표 (편집 가능) — 검색 없을 때는 표에서 바로 행 추가/삭제도 가능
-# ----------------------------------------------------------------------------
 edited_df = st.data_editor(
     view_df,
     num_rows=editable_mode,
@@ -684,7 +602,6 @@ edited_df = st.data_editor(
 )
 
 if search.strip():
-    # 검색(고정) 모드: 편집된 값만 원본에 반영, 행 추가/삭제는 없음
     for idx in edited_df.index:
         st.session_state.df.loc[idx] = edited_df.loc[idx]
     st.session_state.df = recompute_quantity(st.session_state.df)
