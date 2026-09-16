@@ -592,17 +592,6 @@ with st.expander("➕ 새 항목 추가", expanded=False):
 
 search = st.text_input("🔍 검색어 (모든 컬럼에서 검색)")
 
-if search.strip():
-    mask = st.session_state.df.astype(str).apply(
-        lambda col: col.str.contains(search, case=False, na=False)
-    ).any(axis=1)
-    view_df = st.session_state.df[mask]
-    editable_mode = "fixed"
-    st.caption(f"검색 결과 {len(view_df)}건 (행 추가/삭제는 검색어를 지운 뒤 이용해주세요)")
-else:
-    view_df = st.session_state.df
-    editable_mode = "dynamic"
-
 with st.expander("🗺️ 실험실 배치도 보기 (보관위치 선택 시 강조)", expanded=False):
     selected_location = st.selectbox(
         "보관위치",
@@ -612,27 +601,121 @@ with st.expander("🗺️ 실험실 배치도 보기 (보관위치 선택 시 �
     highlight = None if selected_location == "(전체 보기)" else selected_location
     components.html(build_floor_plan_svg(highlight), height=830, scrolling=True)
 
-edited_df = st.data_editor(
-    view_df,
-    num_rows=editable_mode,
-    use_container_width=True,
-    height=560,
-    key="main_editor",
-    column_config={
-        "보관위치": st.column_config.SelectboxColumn(
-            "보관위치", options=STORAGE_LOCATIONS + [""], required=False
-        ),
-        "수량": st.column_config.NumberColumn("수량"),
-        "미개봉": st.column_config.NumberColumn("미개봉", min_value=0, step=1),
-        "개봉": st.column_config.NumberColumn("개봉", min_value=0, step=1),
-    },
+# ----------------------------------------------------------------------------
+# 4. 뷰 모드 선택 (그룹 보기 / 전체 보기)
+# ----------------------------------------------------------------------------
+view_mode = st.radio(
+    "표시 방식",
+    ["🗂️ 그룹 보기 (같은 물질 묶기)", "📋 전체 보기 (개별 행)"],
+    horizontal=True,
+    key="view_mode_radio",
 )
 
+# 검색 필터 적용
 if search.strip():
-    for idx in edited_df.index:
-        st.session_state.df.loc[idx] = edited_df.loc[idx]
-    st.session_state.df = recompute_quantity(st.session_state.df)
+    mask = st.session_state.df.astype(str).apply(
+        lambda col: col.str.contains(search, case=False, na=False)
+    ).any(axis=1)
+    view_df = st.session_state.df[mask]
 else:
-    st.session_state.df = recompute_quantity(edited_df.reset_index(drop=True))
+    view_df = st.session_state.df
+
+if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
+    # -------------------------------------------------------------------------
+    # 그룹 보기: 제품명+CAT No. 기준으로 묶어서 수량 합산, 펼치면 개별 행 편집 가능
+    # -------------------------------------------------------------------------
+    def make_group_key(row):
+        name = str(row["제품명"]).strip().lower()
+        cat  = str(row["CAT No."]).strip().lower().lstrip("0")
+        return (name, cat)
+
+    view_df = view_df.copy().reset_index(drop=True)
+    view_df["_gkey"] = view_df.apply(make_group_key, axis=1)
+
+    groups = {}
+    for idx, row in view_df.iterrows():
+        k = row["_gkey"]
+        groups.setdefault(k, []).append(idx)
+
+    if search.strip():
+        st.caption(f"검색 결과 {len(view_df)}건 / {len(groups)}개 그룹")
+    else:
+        st.caption(f"총 {len(st.session_state.df)}개 항목 / {len(groups)}개 그룹")
+
+    # 그룹별 렌더링
+    for gkey, idxs in groups.items():
+        grp = view_df.loc[idxs]
+        first = grp.iloc[0]
+        total_qty = len(idxs)
+        unopened  = sum(1 for _, r in grp.iterrows() if str(r.get("개봉","")).strip() in ("","nan","0","0.0"))
+        opened    = total_qty - unopened
+        loc       = str(first["보관위치"]).strip()
+
+        # 그룹 헤더 expander
+        label = (
+            f"**{first['제품명']}**"
+            f"　｜　{first['CAT No.']}　｜　{first['용량']}"
+            f"　｜　📦 수량: {total_qty}"
+            f"　｜　📍 {loc}"
+        )
+
+        with st.expander(label, expanded=False):
+            st.caption(f"미개봉 {unopened}개 · 개봉 {opened}개 · {first['유해·위험성']}")
+
+            # 개별 행 편집 가능
+            sub_df = grp.drop(columns=["_gkey"]).reset_index(drop=True)
+            edited_sub = st.data_editor(
+                sub_df,
+                num_rows="dynamic",
+                use_container_width=True,
+                key=f"sub_editor_{gkey[0][:20]}_{gkey[1][:10]}",
+                column_config={
+                    "보관위치": st.column_config.SelectboxColumn(
+                        "보관위치", options=STORAGE_LOCATIONS + [""], required=False
+                    ),
+                    "수량":   st.column_config.NumberColumn("수량"),
+                    "미개봉": st.column_config.NumberColumn("미개봉", min_value=0, step=1),
+                    "개봉":   st.column_config.NumberColumn("개봉",   min_value=0, step=1),
+                },
+            )
+            # 편집 반영
+            edited_sub = recompute_quantity(edited_sub.astype(object))
+            for i, orig_idx in enumerate(idxs):
+                if i < len(edited_sub):
+                    st.session_state.df.loc[orig_idx] = edited_sub.iloc[i]
+
+else:
+    # -------------------------------------------------------------------------
+    # 전체 보기: 기존 data_editor 방식
+    # -------------------------------------------------------------------------
+    if search.strip():
+        editable_mode = "fixed"
+        st.caption(f"검색 결과 {len(view_df)}건 (행 추가/삭제는 검색어를 지운 뒤 이용해주세요)")
+    else:
+        editable_mode = "dynamic"
+        st.caption(f"총 {len(st.session_state.df)}개 항목")
+
+    edited_df = st.data_editor(
+        view_df,
+        num_rows=editable_mode,
+        use_container_width=True,
+        height=560,
+        key="main_editor",
+        column_config={
+            "보관위치": st.column_config.SelectboxColumn(
+                "보관위치", options=STORAGE_LOCATIONS + [""], required=False
+            ),
+            "수량":   st.column_config.NumberColumn("수량"),
+            "미개봉": st.column_config.NumberColumn("미개봉", min_value=0, step=1),
+            "개봉":   st.column_config.NumberColumn("개봉",   min_value=0, step=1),
+        },
+    )
+
+    if search.strip():
+        for idx in edited_df.index:
+            st.session_state.df.loc[idx] = edited_df.loc[idx]
+        st.session_state.df = recompute_quantity(st.session_state.df)
+    else:
+        st.session_state.df = recompute_quantity(edited_df.reset_index(drop=True))
 
 st.caption(f"총 {len(st.session_state.df)}개 항목")
