@@ -651,8 +651,12 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
     else:
         st.caption(f"총 {len(st.session_state.df)}개 항목 / {total_groups}종")
 
-    # 보관위치별 섹션
-    locs_in_view = [l for l in STORAGE_LOCATIONS if l in view_df["_loc"].values] +                    [l for l in view_df["_loc"].unique() if l not in STORAGE_LOCATIONS and l not in ("nan","")]
+    # 보관위치 순서: STORAGE_LOCATIONS 순서 그대로, 나머지는 뒤에
+    locs_in_view = [l for l in STORAGE_LOCATIONS if l in view_df["_loc"].values] +                    [l for l in view_df["_loc"].unique()
+                    if l not in STORAGE_LOCATIONS and l not in ("nan", "")]
+
+    # key 중복 방지용 전역 카운터
+    key_counter = {}
 
     for loc in locs_in_view:
         loc_df = view_df[view_df["_loc"] == loc]
@@ -664,32 +668,39 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
         loc_total_qty = len(loc_df)
         loc_kinds     = len(loc_groups)
 
-        # 보관위치 섹션 헤더
-        st.markdown(f"### 📦 {loc}　　<span style='font-size:0.85em;color:gray;'>{loc_kinds}종 · {loc_total_qty}개</span>", unsafe_allow_html=True)
+        st.markdown(
+            f"### 📦 {loc}&nbsp;&nbsp;"
+            f"<span style='font-size:0.85em;color:gray;'>{loc_kinds}종 · {loc_total_qty}개</span>",
+            unsafe_allow_html=True,
+        )
 
         for gkey, idxs in loc_groups.items():
-            grp    = view_df.loc[idxs]
-            first  = grp.iloc[0]
-            qty    = len(idxs)
+            grp      = view_df.loc[idxs]
+            first    = grp.iloc[0]
+            qty      = len(idxs)
             unopened = sum(1 for _, r in grp.iterrows()
-                           if str(r.get("개봉","")).strip() in ("","nan","0","0.0"))
+                           if str(r.get("개봉", "")).strip() in ("", "nan", "0", "0.0"))
             opened   = qty - unopened
 
-            suffix = f"　수량 {qty}" + (f"（미개봉 {unopened} · 개봉 {opened}）" if qty > 1 else "")
-            label  = (
-                f"{first['제품명']}　｜　{first['용량']}"
-                f"　｜　{suffix}"
-            )
+            suffix = f"수량 {qty}" + (f"  （미개봉 {unopened} · 개봉 {opened}）" if qty > 1 else "")
+            label  = f"{first['제품명']}　｜　{first['용량']}　｜　{suffix}"
+
+            # key 중복 방지: loc + gkey + 카운터 조합
+            base_key = f"sub_{loc[:8]}_{gkey[0][:12]}_{gkey[1][:8]}"
+            key_counter[base_key] = key_counter.get(base_key, 0) + 1
+            unique_key = f"{base_key}_{key_counter[base_key]}"
 
             with st.expander(label, expanded=False):
-                st.caption(f"CAT No. {first['CAT No.']}　｜　CAS {first['CAS No.']}　｜　{first['유해·위험성']}")
-
-                sub_df = grp.drop(columns=["_gkey","_loc"]).reset_index(drop=True)
+                st.caption(
+                    f"CAT No. {first['CAT No.']}　｜　"
+                    f"CAS {first['CAS No.']}　｜　{first['유해·위험성']}"
+                )
+                sub_df = grp.drop(columns=["_gkey", "_loc"]).reset_index(drop=True)
                 edited_sub = st.data_editor(
                     sub_df,
                     num_rows="dynamic",
                     use_container_width=True,
-                    key=f"sub_{loc[:6]}_{gkey[0][:15]}_{gkey[1][:8]}",
+                    key=unique_key,
                     column_config={
                         "보관위치": st.column_config.SelectboxColumn(
                             "보관위치", options=STORAGE_LOCATIONS + [""], required=False
@@ -706,7 +717,6 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
 
         st.divider()
 
-else:
     # -------------------------------------------------------------------------
     # 전체 보기: 기존 data_editor 방식
     # -------------------------------------------------------------------------
