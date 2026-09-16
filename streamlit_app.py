@@ -622,7 +622,7 @@ else:
 
 if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
     # -------------------------------------------------------------------------
-    # 그룹 보기: 제품명+CAT No. 기준으로 묶어서 수량 합산, 펼치면 개별 행 편집 가능
+    # 그룹 보기: 보관위치 → 물질 2단계 계층
     # -------------------------------------------------------------------------
     def make_group_key(row):
         name = str(row["제품명"]).strip().lower()
@@ -631,58 +631,80 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
 
     view_df = view_df.copy().reset_index(drop=True)
     view_df["_gkey"] = view_df.apply(make_group_key, axis=1)
+    view_df["_loc"]  = view_df["보관위치"].astype(str).str.strip()
 
-    groups = {}
-    for idx, row in view_df.iterrows():
-        k = row["_gkey"]
-        groups.setdefault(k, []).append(idx)
+    # 보관위치 필터
+    all_locs = sorted(view_df["_loc"].unique())
+    loc_options = ["전체"] + [l for l in STORAGE_LOCATIONS if l in all_locs] +                   [l for l in all_locs if l not in STORAGE_LOCATIONS and l not in ("nan","")]
+    selected_loc_filter = st.selectbox(
+        "📍 보관위치 필터",
+        loc_options,
+        key="loc_filter_select",
+    )
+    if selected_loc_filter != "전체":
+        view_df = view_df[view_df["_loc"] == selected_loc_filter]
 
+    total_items = len(view_df)
+    total_groups = view_df["_gkey"].nunique()
     if search.strip():
-        st.caption(f"검색 결과 {len(view_df)}건 / {len(groups)}개 그룹")
+        st.caption(f"검색 결과 {total_items}개 항목 / {total_groups}종")
     else:
-        st.caption(f"총 {len(st.session_state.df)}개 항목 / {len(groups)}개 그룹")
+        st.caption(f"총 {len(st.session_state.df)}개 항목 / {total_groups}종")
 
-    # 그룹별 렌더링
-    for gkey, idxs in groups.items():
-        grp = view_df.loc[idxs]
-        first = grp.iloc[0]
-        total_qty = len(idxs)
-        unopened  = sum(1 for _, r in grp.iterrows() if str(r.get("개봉","")).strip() in ("","nan","0","0.0"))
-        opened    = total_qty - unopened
-        loc       = str(first["보관위치"]).strip()
+    # 보관위치별 섹션
+    locs_in_view = [l for l in STORAGE_LOCATIONS if l in view_df["_loc"].values] +                    [l for l in view_df["_loc"].unique() if l not in STORAGE_LOCATIONS and l not in ("nan","")]
 
-        # 그룹 헤더 expander
-        label = (
-            f"**{first['제품명']}**"
-            f"　｜　{first['CAT No.']}　｜　{first['용량']}"
-            f"　｜　📦 수량: {total_qty}"
-            f"　｜　📍 {loc}"
-        )
+    for loc in locs_in_view:
+        loc_df = view_df[view_df["_loc"] == loc]
+        loc_groups = {}
+        for idx, row in loc_df.iterrows():
+            k = row["_gkey"]
+            loc_groups.setdefault(k, []).append(idx)
 
-        with st.expander(label, expanded=False):
-            st.caption(f"미개봉 {unopened}개 · 개봉 {opened}개 · {first['유해·위험성']}")
+        loc_total_qty = len(loc_df)
+        loc_kinds     = len(loc_groups)
 
-            # 개별 행 편집 가능
-            sub_df = grp.drop(columns=["_gkey"]).reset_index(drop=True)
-            edited_sub = st.data_editor(
-                sub_df,
-                num_rows="dynamic",
-                use_container_width=True,
-                key=f"sub_editor_{gkey[0][:20]}_{gkey[1][:10]}",
-                column_config={
-                    "보관위치": st.column_config.SelectboxColumn(
-                        "보관위치", options=STORAGE_LOCATIONS + [""], required=False
-                    ),
-                    "수량":   st.column_config.NumberColumn("수량"),
-                    "미개봉": st.column_config.NumberColumn("미개봉", min_value=0, step=1),
-                    "개봉":   st.column_config.NumberColumn("개봉",   min_value=0, step=1),
-                },
+        # 보관위치 섹션 헤더
+        st.markdown(f"### 📦 {loc}　　<span style='font-size:0.85em;color:gray;'>{loc_kinds}종 · {loc_total_qty}개</span>", unsafe_allow_html=True)
+
+        for gkey, idxs in loc_groups.items():
+            grp    = view_df.loc[idxs]
+            first  = grp.iloc[0]
+            qty    = len(idxs)
+            unopened = sum(1 for _, r in grp.iterrows()
+                           if str(r.get("개봉","")).strip() in ("","nan","0","0.0"))
+            opened   = qty - unopened
+
+            suffix = f"　수량 {qty}" + (f"（미개봉 {unopened} · 개봉 {opened}）" if qty > 1 else "")
+            label  = (
+                f"{first['제품명']}　｜　{first['용량']}"
+                f"　｜　{suffix}"
             )
-            # 편집 반영
-            edited_sub = recompute_quantity(edited_sub.astype(object))
-            for i, orig_idx in enumerate(idxs):
-                if i < len(edited_sub):
-                    st.session_state.df.loc[orig_idx] = edited_sub.iloc[i]
+
+            with st.expander(label, expanded=False):
+                st.caption(f"CAT No. {first['CAT No.']}　｜　CAS {first['CAS No.']}　｜　{first['유해·위험성']}")
+
+                sub_df = grp.drop(columns=["_gkey","_loc"]).reset_index(drop=True)
+                edited_sub = st.data_editor(
+                    sub_df,
+                    num_rows="dynamic",
+                    use_container_width=True,
+                    key=f"sub_{loc[:6]}_{gkey[0][:15]}_{gkey[1][:8]}",
+                    column_config={
+                        "보관위치": st.column_config.SelectboxColumn(
+                            "보관위치", options=STORAGE_LOCATIONS + [""], required=False
+                        ),
+                        "수량":   st.column_config.NumberColumn("수량"),
+                        "미개봉": st.column_config.NumberColumn("미개봉", min_value=0, step=1),
+                        "개봉":   st.column_config.NumberColumn("개봉",   min_value=0, step=1),
+                    },
+                )
+                edited_sub = recompute_quantity(edited_sub.astype(object))
+                for i, orig_idx in enumerate(idxs):
+                    if i < len(edited_sub):
+                        st.session_state.df.loc[orig_idx] = edited_sub.iloc[i]
+
+        st.divider()
 
 else:
     # -------------------------------------------------------------------------
@@ -717,5 +739,3 @@ else:
         st.session_state.df = recompute_quantity(st.session_state.df)
     else:
         st.session_state.df = recompute_quantity(edited_df.reset_index(drop=True))
-
-st.caption(f"총 {len(st.session_state.df)}개 항목")
