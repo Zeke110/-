@@ -651,24 +651,16 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
     else:
         st.caption(f"총 {len(st.session_state.df)}개 항목 / {total_groups}종")
 
-    # 보관위치 이름 정규화 (구버전 이름 → 현재 이름으로 변환 후 순서 맞춤)
+    # 보관위치 이름 정규화
     view_df["_loc"] = view_df["_loc"].apply(
         lambda x: LOCATION_RENAME_MAP.get(x, x)
     )
 
-    # STORAGE_LOCATIONS 순서대로, 나머지는 뒤에
+    # STORAGE_LOCATIONS 순서대로 정렬
     locs_in_view = [l for l in STORAGE_LOCATIONS if l in view_df["_loc"].values] +                    [l for l in view_df["_loc"].unique()
                     if l not in STORAGE_LOCATIONS and l not in ("nan", "")]
 
     key_counter = {}
-
-    # 좌우 2열 레이아웃으로 보관위치 섹션 배치
-    n_locs = len(locs_in_view)
-    mid    = (n_locs + 1) // 2   # 왼쪽이 한 개 더 많거나 같게
-    left_locs  = locs_in_view[:mid]
-    right_locs = locs_in_view[mid:]
-
-    col_left, col_right = st.columns(2)
 
     def render_loc_section(loc, container):
         loc_df = view_df[view_df["_loc"] == loc]
@@ -682,11 +674,10 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
 
         with container:
             st.markdown(
-                f"### 📦 {loc}&nbsp;&nbsp;"
-                f"<span style='font-size:0.85em;color:gray;'>{loc_kinds}종 · {loc_total_qty}개</span>",
+                f"#### 📦 {loc}&nbsp;&nbsp;"
+                f"<span style='font-size:0.82em;color:gray;'>{loc_kinds}종 · {loc_total_qty}개</span>",
                 unsafe_allow_html=True,
             )
-
             for gkey, idxs in loc_groups.items():
                 grp      = view_df.loc[idxs]
                 first    = grp.iloc[0]
@@ -695,7 +686,7 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
                                if str(r.get("개봉", "")).strip() in ("", "nan", "0", "0.0"))
                 opened   = qty - unopened
 
-                suffix = f"수량 {qty}" + (f"  （미개봉 {unopened} · 개봉 {opened}）" if qty > 1 else "")
+                suffix = f"수량 {qty}" + (f"（미개봉 {unopened}·개봉 {opened}）" if qty > 1 else "")
                 label  = f"{first['제품명']}　｜　{first['용량']}　｜　{suffix}"
 
                 base_key = f"sub_{loc[:8]}_{gkey[0][:12]}_{gkey[1][:8]}"
@@ -727,12 +718,36 @@ if view_mode == "🗂️ 그룹 보기 (같은 물질 묶기)":
                         if i < len(edited_sub):
                             st.session_state.df.loc[orig_idx] = edited_sub.iloc[i]
 
-            st.divider()
+    # ── 시약장 1 그룹: 1-1~1-5를 2열 그리드로 ──────────────────────────────
+    shelf1_locs = [l for l in locs_in_view if "시약장 1-" in l]
+    other_locs  = [l for l in locs_in_view if "시약장 1-" not in l]
 
-    for loc in left_locs:
-        render_loc_section(loc, col_left)
-    for loc in right_locs:
-        render_loc_section(loc, col_right)
+    if shelf1_locs:
+        st.markdown("## 🗄️ 시약장 1 (환기시약장)")
+        # 2열씩 배치
+        for i in range(0, len(shelf1_locs), 2):
+            pair = shelf1_locs[i:i+2]
+            if len(pair) == 2:
+                c1, c2 = st.columns(2)
+                render_loc_section(pair[0], c1)
+                render_loc_section(pair[1], c2)
+            else:
+                c1, _ = st.columns(2)
+                render_loc_section(pair[0], c1)
+        st.divider()
+
+    # ── 나머지 보관위치: 2열 그리드 ─────────────────────────────────────────
+    if other_locs:
+        st.markdown("## 📦 기타 보관위치")
+        for i in range(0, len(other_locs), 2):
+            pair = other_locs[i:i+2]
+            if len(pair) == 2:
+                c1, c2 = st.columns(2)
+                render_loc_section(pair[0], c1)
+                render_loc_section(pair[1], c2)
+            else:
+                c1, _ = st.columns(2)
+                render_loc_section(pair[0], c1)
 
 
     # -------------------------------------------------------------------------
