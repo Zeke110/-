@@ -52,14 +52,23 @@ COLUMNS = [
 
 CAPACITY_UNITS = ["g", "kg", "mL", "L"]
 
+# ▼▼▼ 수정 1: STORAGE_LOCATIONS ▼▼▼
 STORAGE_LOCATIONS = [
+    "시약장 1-1 (산/부식성)",
+    "시약장 1-2 (염기/아민)",
+    "시약장 1-3 (산화제/제6류)",
+    "시약장 1-4 (비가연성)",
+    "시약장 1-5 (이온성 액체)",
+    "시약장 2 (인화성)",
+    "시약장 3 (고체시약장)",
+    "시약장 4 (데시케이터1)",
+    "시약장 5 (데시케이터2)",
     "환기시약장",
     "위험물 보관함",
-    "2 시약장",
-    "데시케이터 1",
-    "데시케이터 2",
     "냉장고",
+    "글로브 박스",
 ]
+# ▲▲▲ 수정 1 끝 ▲▲▲
 
 # ----------------------------------------------------------------------------
 # 실험실 배치도 (보관위치 지도)
@@ -67,14 +76,24 @@ STORAGE_LOCATIONS = [
 # 각 보관위치 이름을 배치도 위의 사각형 좌표(x, y, width, height)에 매핑해서,
 # 보관위치를 선택하면 그 구역만 빨간 테두리로 강조되도록 한다.
 # ----------------------------------------------------------------------------
+# ▼▼▼ 수정 2: FLOOR_PLAN_RECTS ▼▼▼
 FLOOR_PLAN_RECTS = {
-    "환기시약장": (568, 348, 72, 60),
-    "위험물 보관함": (568, 237, 72, 60),
-    "2 시약장": (397, 365, 52, 73),  # 배치도 상의 "2 보관함" 칸
-    "데시케이터 1": (163, 178, 69, 59),
-    "데시케이터 2": (295, 710, 70, 68),
-    "냉장고": (295, 782, 70, 68),
+    # 시약장 1 (환기시약장) — 1-1~1-5 모두 같은 칸 강조
+    "시약장 1-1 (산/부식성)":    (568, 348, 72, 60),
+    "시약장 1-2 (염기/아민)":    (568, 348, 72, 60),
+    "시약장 1-3 (산화제/제6류)": (568, 348, 72, 60),
+    "시약장 1-4 (비가연성)":     (568, 348, 72, 60),
+    "시약장 1-5 (이온성 액체)":  (568, 348, 72, 60),
+    "환기시약장":                (568, 348, 72, 60),
+    "위험물 보관함":             (568, 237, 72, 60),
+    "시약장 2 (인화성)":         (397, 365, 52, 73),
+    "시약장 3 (고체시약장)":     (0, 0, 0, 0),    # 추후 업데이트
+    "시약장 4 (데시케이터1)":    (0, 0, 0, 0),    # 추후 업데이트
+    "시약장 5 (데시케이터2)":    (0, 0, 0, 0),    # 추후 업데이트
+    "냉장고":                    (295, 782, 70, 68),
+    "글로브 박스":               (274, 46, 111, 72),
 }
+# ▲▲▲ 수정 2 끝 ▲▲▲
 
 
 def build_floor_plan_svg(highlight_location=None):
@@ -109,14 +128,14 @@ def build_floor_plan_svg(highlight_location=None):
 <g><rect x="40" y="165" width="72" height="72" fill="#1b6a86" stroke="#333" stroke-width="1"/><text class="ts" x="76" y="201" text-anchor="middle" dominant-baseline="central" fill="#fff">책상 2</text></g>
 <g><rect x="40" y="237" width="72" height="81" fill="#1b6a86" stroke="#333" stroke-width="1"/><text class="ts" x="76" y="277" text-anchor="middle" dominant-baseline="central" fill="#fff">책상 1</text></g>
 
-<g><rect x="163" y="178" width="69" height="59" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="197" y="207" text-anchor="middle" dominant-baseline="central"><tspan x="197" dy="-6">데시케이터</tspan><tspan x="197" dy="14">1</tspan></text></g>
+<g><rect x="163" y="178" width="69" height="59" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="197" y="207" text-anchor="middle" dominant-baseline="central"><tspan x="197" dy="-6">시약장 4</tspan><tspan x="197" dy="14">(데시케이터 1)</tspan></text></g>
 <g><rect x="232" y="178" width="267" height="59" fill="#1b6a86" stroke="#333" stroke-width="1"/><text class="ts" x="365" y="207" text-anchor="middle" dominant-baseline="central" fill="#fff">책상 4</text></g>
 <g><rect x="163" y="237" width="69" height="128" fill="#1b6a86" stroke="#333" stroke-width="1"/><text class="ts" x="197" y="301" text-anchor="middle" dominant-baseline="central" fill="#fff">책상 3</text></g>
 <g><rect x="163" y="365" width="69" height="73" fill="#9e9e9e" stroke="#333" stroke-width="1"/><text class="ts" x="197" y="392" text-anchor="middle" dominant-baseline="central" fill="#fff"><tspan x="197" dy="-6">Probe</tspan><tspan x="197" dy="14">station</tspan></text></g>
 
 <g><rect x="316" y="301" width="69" height="201" fill="#1b6a86" stroke="#333" stroke-width="1"/><text class="ts" x="350" y="401" text-anchor="middle" dominant-baseline="central" fill="#fff">책상 5</text></g>
 <g><rect x="385" y="301" width="68" height="64" fill="#1b6a86" stroke="#333" stroke-width="1"/><text class="ts" x="419" y="333" text-anchor="middle" dominant-baseline="central" fill="#fff">책상 6</text></g>
-<g><rect x="397" y="365" width="52" height="73" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="423" y="401" text-anchor="middle" dominant-baseline="central"><tspan x="423" dy="-6">2</tspan><tspan x="423" dy="14">보관함</tspan></text></g>
+<g><rect x="397" y="365" width="52" height="73" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="423" y="401" text-anchor="middle" dominant-baseline="central"><tspan x="423" dy="-10">시약장 2</tspan><tspan x="423" dy="13">(인화성)</tspan></text></g>
 
 <g><rect x="568" y="237" width="72" height="60" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="604" y="267" text-anchor="middle" dominant-baseline="central"><tspan x="604" dy="-6">위험물</tspan><tspan x="604" dy="14">보관함</tspan></text></g>
 <g><rect x="568" y="348" width="72" height="60" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="604" y="378" text-anchor="middle" dominant-baseline="central"><tspan x="604" dy="-6">환기</tspan><tspan x="604" dy="14">시약장</tspan></text></g>
@@ -130,7 +149,7 @@ def build_floor_plan_svg(highlight_location=None):
 <g><rect x="529" y="578" width="111" height="81" fill="#b2e2b2" stroke="#333" stroke-width="1"/><text class="ts" x="584" y="618" text-anchor="middle" dominant-baseline="central">입구 선반</text></g>
 
 <g><rect x="163" y="710" width="132" height="68" fill="#f0d4ef" stroke="#333" stroke-width="1"/><text class="ts" x="229" y="744" text-anchor="middle" dominant-baseline="central">싱크대</text></g>
-<g><rect x="295" y="710" width="70" height="68" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="330" y="744" text-anchor="middle" dominant-baseline="central"><tspan x="330" dy="-6">데시케이터</tspan><tspan x="330" dy="14">2</tspan></text></g>
+<g><rect x="295" y="710" width="70" height="68" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="330" y="744" text-anchor="middle" dominant-baseline="central"><tspan x="330" dy="-6">시약장 5</tspan><tspan x="330" dy="14">(데시케이터 2)</tspan></text></g>
 <g><rect x="295" y="782" width="70" height="68" fill="#ffee33" stroke="#333" stroke-width="1"/><text class="ts" x="330" y="816" text-anchor="middle" dominant-baseline="central">냉장고</text></g>
 
 <g>
